@@ -112,6 +112,8 @@ if(!dir.exists(out_dir)){
   dir.create(out_dir)
 }
 
+# Allow multiple target_pop
+target_pops<-unlist(strsplit(target_pop,','))
 
 ############################### QC
 dat1 = dat1[complete.cases(dat1), ]
@@ -158,7 +160,7 @@ for(chr in 1:22){
   ref2_bed_chr = ref2_bed[, ind]
   ldscore1_chr = ldscore1[ind, ]
   ldscore2_chr = ldscore2[ind, ]
-  
+
   f1 = f1[order(f1$BP), ]
   f1 = f1[! f1$BP %in% f1$BP[duplicated(f1$BP)], ]
   f1 = f1[f1$SNP %in% ref_bim_chr$V2 & f1$BP %in% ref_bim_chr$V4, ]
@@ -171,7 +173,7 @@ for(chr in 1:22){
   f1$Z[flop] = -f1$Z[flop]
   ind = (pos + neg == 1)
   f1 = f1[ind, ]
-  
+
   f2 = f2[order(f2$BP), ]
   f2 = f2[! f2$BP %in% f2$BP[duplicated(f2$BP)], ]
   f2 = f2[f2$SNP %in% ref_bim_chr$V2 & f2$BP %in% ref_bim_chr$V4, ]
@@ -184,7 +186,7 @@ for(chr in 1:22){
   f2$Z[flop] = -f2$Z[flop]
   ind = (pos + neg == 1)
   f2 = f2[ind, ]
-  
+
   overlap_snp = intersect(f1$SNP, f2$SNP)
   f1 = f1[f1$SNP %in% overlap_snp, ]
   f2 = f2[f2$SNP %in% overlap_snp, ]
@@ -328,7 +330,7 @@ svd.try = function(x, nu, nv){
 simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
   len = table(segment.partition$segment)
   segment.count = max(segment.partition$segment)
-  
+
   if(segment.count == 1){
     ld_diag = ld2_diag = list()
     Sigma_p1 = Sigma_p2 = Sigma_V1 = Sigma_V2 = Sigma_D1 = Sigma_D2 = list()
@@ -336,7 +338,7 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
     ld_diag[[1]] = cor(geno.block[, colnames(geno.block) %in% snp_1], use = 'pairwise.complete.obs')
     ld_diag[[1]][is.na(ld_diag[[1]])] = 0
     ld2_diag[[1]] = (n_ref-1)/(n_ref-2)*ld_diag[[1]]%*%ld_diag[[1]] - sum(len[1])/(n_ref-2)*ld_diag[[1]]
-    
+
     SVD = svd.try(ld_diag[[1]], nu = 0, nv = nrow(ld_diag[[1]]))
     sv = SVD$d
     Sigma_p1[[1]] = sum(sv>sv[1]/thre)
@@ -347,10 +349,10 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
     Sigma_p2[[1]] = sum(sv>sv[1]/thre)
     Sigma_D2[[1]] = sqrt(sv[1:Sigma_p2[[1]]])
     Sigma_V2[[1]] = SVD$v[,1:Sigma_p2[[1]]]
-    
+
     return(list(p1 = Sigma_p1, p2 = Sigma_p2, V1 = Sigma_V1, V2 = Sigma_V2, D1 = Sigma_D1, D2 = Sigma_D2))
   }
-  
+
   if(segment.count > 1){
     ld_diag = ld_offdiag = ld2_diag = ld2_offdiag = list()
     C1 = C2 = Sigma_p1 = Sigma_p2 = Sigma_V1 = Sigma_V2 = Sigma_D1 = Sigma_D2 = list()
@@ -362,7 +364,7 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
     ld_diag[[1]][is.na(ld_diag[[1]])] = ld_diag[[2]][is.na(ld_diag[[2]])] = ld_offdiag[[1]][is.na(ld_offdiag[[1]])] = 0
     ld2_diag[[1]] = (n_ref-1)/(n_ref-2)*( ld_diag[[1]]%*%ld_diag[[1]] + ld_offdiag[[1]]%*%t(ld_offdiag[[1]]) ) - sum(len[1:2])/(n_ref-2)*ld_diag[[1]]
     ld2_offdiag[[1]] = (n_ref-1)/(n_ref-2)*( ld_diag[[1]]%*%ld_offdiag[[1]] + ld_offdiag[[1]]%*%ld_diag[[2]] ) - sum(len[1:2])/(n_ref-2)*ld_offdiag[[1]]
-    
+
     SVD = svd.try(ld_diag[[1]], nu = 0, nv = nrow(ld_diag[[1]]))
     sv = SVD$d
     Sigma_p1[[1]] = sum(sv>sv[1]/thre)
@@ -373,7 +375,7 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
     Sigma_p2[[1]] = sum(sv>sv[1]/thre)
     Sigma_D2[[1]] = sqrt(sv[1:Sigma_p2[[1]]])
     Sigma_V2[[1]] = SVD$v[,1:Sigma_p2[[1]]]
-    
+
     if(segment.count > 2){
       for(j in 2:(segment.count-1)){
         snp_1 = segment.partition$SNP[segment.partition$segment == j]
@@ -384,9 +386,9 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
         ld2_diag[[j]] = (n_ref-1)/(n_ref-2)*( ld_diag[[j]]%*%ld_diag[[j]] + t(ld_offdiag[[j-1]])%*%ld_offdiag[[j-1]] + ld_offdiag[[j]]%*%t(ld_offdiag[[j]]) ) - sum(len[(j-1):(j+1)])/(n_ref-2)*ld_diag[[j]]
         ld2_offdiag[[j]] = (n_ref-1)/(n_ref-2)*( ld_diag[[j]]%*%ld_offdiag[[j]] + ld_offdiag[[j]]%*%ld_diag[[j+1]] ) - sum(len[j:(j+1)])/(n_ref-2)*ld_offdiag[[j]]
         if(j > 2){
-          ld_diag[[j-2]] = ld_offdiag[[j-2]] = ld2_diag[[j-2]] = ld2_offdiag[[j-2]] = 0 
+          ld_diag[[j-2]] = ld_offdiag[[j-2]] = ld2_diag[[j-2]] = ld2_offdiag[[j-2]] = 0
         }
-        
+
         svd1 = svd.try(ld_diag[[j-1]], nu = 0, nv = nrow(ld_diag[[j-1]]))
         sv1 = svd1$d
         p1 = sum(sv1>sv1[1]/thre)
@@ -409,7 +411,7 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
         V2 = as.matrix(svd2$v[,1:p2])
         C2[[j]] = t(ld2_offdiag[[j-1]])%*%V2%*%D2%*%t(V2)
         Sigma2 = ld2_diag[[j]] - C2[[j]]%*%ld2_offdiag[[j-1]]
-        
+
         SVD = svd.try(Sigma1, nu = 0, nv = nrow(Sigma1))
         sv = SVD$d
         Sigma_p1[[j]] = sum(sv>sv[1]/thre)
@@ -422,7 +424,7 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
         Sigma_V2[[j]] = SVD$v[,1:Sigma_p2[[j]]]
       }
     }
-    
+
     j = segment.count
     ld2_diag[[j]] = ld_diag[[j]]%*%ld_diag[[j]] + t(ld_offdiag[[j-1]])%*%ld_offdiag[[j-1]]
     svd1 = svd.try(ld_diag[[j-1]], nu = 0, nv = nrow(ld_diag[[j-1]]))
@@ -447,7 +449,7 @@ simulate_zscore_helper = function(segment.partition, geno.block, n_ref, thre){
     V2 = as.matrix(svd2$v[,1:p2])
     C2[[j]] = t(ld2_offdiag[[j-1]])%*%V2%*%D2%*%t(V2)
     Sigma2 = ld2_diag[[j]] - C2[[j]]%*%ld2_offdiag[[j-1]]
-    
+
     SVD = svd.try(Sigma1, nu = 0, nv = nrow(Sigma1))
     sv = SVD$d
     Sigma_p1[[j]] = sum(sv>sv[1]/thre)
@@ -492,11 +494,11 @@ cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n
   segment.partition = bim[, c(2, 7)]
   colnames(segment.partition) = c('SNP', 'segment')
   segment.count = max(segment.partition$segment)
-  
+
   ### simulate zscore vectors under the null
   pop1.helper = simulate_zscore_helper(segment.partition, geno1, n_ref1, thre)
   pop2.helper = simulate_zscore_helper(segment.partition, geno2, n_ref2, thre)
-  
+
   X = matrix(rnorm(n_montecarlo*pop1.helper$p1[[1]]), nrow = pop1.helper$p1[[1]], ncol = n_montecarlo)
   pop1_ss = t(pop1.helper$V1[[1]]%*%(X*pop1.helper$D1[[1]]))
   X = matrix(rnorm(n_montecarlo*pop1.helper$p2[[1]]), nrow = pop1.helper$p2[[1]], ncol = n_montecarlo)
@@ -509,7 +511,7 @@ cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n
   pop2_tt = t(pop2.helper$V2[[1]]%*%(X*pop2.helper$D2[[1]]))
   pop2_SS = pop2_ss
   pop2_TT = pop2_tt
-  
+
   if(segment.count > 1){
     for(j in 2:segment.count){
       X = matrix(rnorm(n_montecarlo*pop1.helper$p1[[j]]), nrow = pop1.helper$p1[[j]], ncol = n_montecarlo)
@@ -520,7 +522,7 @@ cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n
       pop1_TT = cbind(pop1_TT, pop1_tt_new)
       pop1_ss = pop1_ss_new
       pop1_tt = pop1_tt_new
-      
+
       X = matrix(rnorm(n_montecarlo*pop2.helper$p1[[j]]), nrow = pop2.helper$p1[[j]], ncol = n_montecarlo)
       pop2_ss_new = t(pop2.helper$V1[[j]]%*%(X*pop2.helper$D1[[j]])) + pop2_ss%*%t(pop2.helper$C1[[j]])
       X = matrix(rnorm(n_montecarlo*pop2.helper$p2[[j]]), nrow = pop2.helper$p2[[j]], ncol = n_montecarlo)
@@ -531,7 +533,7 @@ cal_qmax = function(bim, geno1, geno2, n_ref1, n_ref2, thre, n_montecarlo, n1, n
       pop2_tt = pop2_tt_new
     }
   }
-  
+
   Z1 = sqrt(n1*h2_snp_1)*pop1_TT + sqrt(1 - h2_snp_1*M)*pop1_SS
   Z2 = sqrt(n2*h2_snp_2)*pop2_TT + sqrt(1 - h2_snp_2*M)*pop2_SS
   sd1 = sd2 = rep(0, n_montecarlo)
@@ -560,10 +562,10 @@ apply.fun = function(block.ind){
     ref1_bed_block = data.frame(fread(paste0(out_dir, '/tmp_files/block/ref1_bed_block_', block.ind, '.txt')))
     ref2_bed_block = data.frame(fread(paste0(out_dir, '/tmp_files/block/ref2_bed_block_', block.ind, '.txt')))
     xldsc_block = data.frame(fread(paste0(out_dir, '/tmp_files/block/xldsc_block_', block.ind, '.txt')))[, 1]
-    
-    result = cal_qmax(bim = ref_bim_block, geno1 = ref1_bed_block, geno2 = ref2_bed_block, 
-                      n_ref1, n_ref2, thre, n_montecarlo, 
-                      n1, n2, h2_snp_1, h2_snp_2, M, 
+
+    result = cal_qmax(bim = ref_bim_block, geno1 = ref1_bed_block, geno2 = ref2_bed_block,
+                      n_ref1, n_ref2, thre, n_montecarlo,
+                      n1, n2, h2_snp_1, h2_snp_2, M,
                       ldsc = xldsc_block, theta, Cn, inter)
     write.table(result$Qmax, paste0(out_dir, '/tmp_files/block/Qmax_block', block.ind, '.txt'), row.names = F, col.names = F, quote = F)
     write.table(result$sd1, paste0(out_dir, '/tmp_files/block/sd1_block', block.ind, '.txt'), row.names = F, col.names = F, quote = F)
@@ -620,7 +622,7 @@ for(block.ind in 1:nrow(block)){
     sd2_data = sqrt(mean(z2_block^2))
     sd1_generated = fread(paste0(out_dir, '/tmp_files/block/sd1_block', block.ind, '.txt'))[, 1]
     sd2_generated = fread(paste0(out_dir, '/tmp_files/block/sd2_block', block.ind, '.txt'))[, 1]
-    
+
     Qmax = as.matrix(read.table(paste0(out_dir, '/tmp_files/block/Qmax_block', block.ind, '.txt')))
     q = rep(0, length(theta))
     Qmax_scaled = matrix(0, nrow = n_montecarlo, ncol = length(theta))
@@ -628,7 +630,7 @@ for(block.ind in 1:nrow(block)){
       Qmax_scaled[, j] = Qmax[, j]*(sd1_data * sd2_data)/(sd1_generated * sd2_generated)
       q[j] = quantile(Qmax_scaled[, j], 0.95)
     }
-    
+
     for(j in 1:length(theta)){
       result = whole_scan(z1_block, z2_block, xldsc_block, Cn, inter, q[j], 1, length(z1_block), theta[j])
       detect = c()
@@ -711,7 +713,7 @@ for(j in 1:length(theta)){
     }
     write.table(dat1_LOGO, paste0(out_dir, '/tmp_files/XPASS/dat1_LOGODetect_theta_', theta[j], '.txt'), row.names = F, col.names = T, quote = F)
     write.table(dat2_LOGO, paste0(out_dir, '/tmp_files/XPASS/dat2_LOGODetect_theta_', theta[j], '.txt'), row.names = F, col.names = T, quote = F)
-    
+
     dat1_LOGO = paste0(out_dir, '/tmp_files/XPASS/dat1_LOGODetect_theta_', theta[j], '.txt')
     dat2_LOGO = paste0(out_dir, '/tmp_files/XPASS/dat2_LOGODetect_theta_', theta[j], '.txt')
     fit = XPASS(file_z1 = dat1_LOGO, file_z2 = dat2_LOGO,
@@ -739,7 +741,7 @@ for(j in 1:length(theta)){
 if(sum(gcov != 0) > 0){
   j = which.max(gcov/gcov_total)
   theta_selected = theta[j]
-  
+
   ### merge regions that are <100KB away
   re = Result[[j]]
   re = re[order(re$begin_pos), ]
@@ -813,13 +815,13 @@ if(!is.na(n_topregion)){
   topregion = topregion[order(topregion$pval), ]
   topregion = topregion[1:min(n_topregion, nrow(topregion)), ]
   topregion = topregion[topregion$stat * gcov_total>0, ]
-  
-  if(pop1 == target_pop){
-    annot = data.frame(fread(sumstats[1]))
+
+  for(pop_i in target_pops){
+    annot = data.frame(fread(sumstats[which(target_pops == pop_i)]))
     annot$Anno = 1
-    write.table(annot[, c('CHR', 'SNP', 'A1', 'A2', 'Anno')], paste0(out_dir, '/annot_', pop1, '.txt'), col.names = T, row.names = F, quote = F)
-    
-    annot = data.frame(fread(sumstats[2]))
+    write.table(annot[, c('CHR', 'SNP', 'A1', 'A2', 'Anno')], paste0(out_dir, '/targ_', pop_i,'_annot_', pop_i, '.txt'), col.names = T, row.names = F, quote = F)
+
+    annot = data.frame(fread(sumstats[which(target_pops != pop_i)]))
     annot$Anno = 0
     annot_new = annot[1, ][-1, ]
     for(ch in 1:22){
@@ -833,30 +835,8 @@ if(!is.na(n_topregion)){
       }
     }
     annot = annot_new[, c('CHR', 'SNP', 'A1', 'A2', 'Anno')]
-    write.table(annot, paste0(out_dir, '/annot_', pop2, '.txt'), col.names = T, row.names = F, quote = F)
+    write.table(annot, paste0(out_dir, '/targ_', pop_i, '_annot_', target_pops[target_pops != pop_i], '.txt'), col.names = T, row.names = F, quote = F)
   }
-  if(pop2 == target_pop){
-    annot = data.frame(fread(sumstats[1]))
-    annot$Anno = 0
-    annot_new = annot[1, ][-1, ]
-    for(ch in 1:22){
-      temp = topregion[topregion$chr == ch, ]
-      if(nrow(temp)>0){
-        annot_new_chr = annot[annot$CHR == ch, ]
-        for(i in 1:nrow(temp)){
-          annot_new_chr$Anno[annot_new_chr$BP >= temp$begin_pos[i] & annot_new_chr$BP <= temp$stop_pos[i]] = 1
-        }
-        annot_new = rbind(annot_new, annot_new_chr)
-      }
-    }
-    annot = annot_new[, c('CHR', 'SNP', 'A1', 'A2', 'Anno')]
-    write.table(annot, paste0(out_dir, '/annot_', pop1, '.txt'), col.names = T, row.names = F, quote = F)
-    
-    annot = data.frame(fread(sumstats[2]))
-    annot$Anno = 1
-    write.table(annot[, c('CHR', 'SNP', 'A1', 'A2', 'Anno')], paste0(out_dir, '/annot_', pop2, '.txt'), col.names = T, row.names = F, quote = F)
-  }
-  
 }
 
 unlink(paste0(out_dir, '/tmp_files'), recursive = T)
